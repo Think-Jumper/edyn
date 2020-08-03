@@ -37,6 +37,8 @@ void job_dispatcher::start(size_t num_worker_threads) {
         m_threads.push_back(std::move(t));
         m_workers[id] = std::move(w);
     }
+
+    m_timed_job_dispatcher.start(*this);
 }
 
 void job_dispatcher::stop() {
@@ -67,11 +69,11 @@ void job_dispatcher::async(std::shared_ptr<job> j) {
 
     EDYN_ASSERT(m_workers.count(best_id));
 
-    m_workers[best_id]->push_job(j);
+    m_workers[best_id]->push_back(j);
 }
 
 void job_dispatcher::async(std::thread::id id, std::shared_ptr<job> j) {
-    // Must not be called from a worker thread.
+    // Should not schedule jobs into specific worker threads.
     EDYN_ASSERT(!m_workers.count(id));
 
     worker *w;
@@ -80,7 +82,32 @@ void job_dispatcher::async(std::thread::id id, std::shared_ptr<job> j) {
         EDYN_ASSERT(m_external_workers.count(id));    
         w = m_external_workers[id].get();
     }
-    w->push_job(j);
+    w->push_back(j);
+}
+
+void job_dispatcher::async_after(double seconds, std::shared_ptr<job> j) {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<int64_t, std::ratio<1, 1000000000>>((int64_t)(seconds * 1e9));
+    auto timed = std::make_shared<timed_job>(now + duration, j);
+    m_timed_job_dispatcher.schedule(timed);
+}
+
+void job_dispatcher::async_asap(std::shared_ptr<job> j) {
+    EDYN_ASSERT(!m_workers.empty());
+
+    auto best_id = std::thread::id();
+    auto min_num_jobs = SIZE_MAX;
+    for (auto &pair : m_workers) {
+        auto s = pair.second->size();
+        if (s < min_num_jobs) {
+            min_num_jobs = s;
+            best_id = pair.first;
+        }
+    }
+
+    EDYN_ASSERT(m_workers.count(best_id));
+
+    m_workers[best_id]->push_front(j);
 }
 
 void job_dispatcher::assure_current_worker() {

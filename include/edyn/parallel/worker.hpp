@@ -10,8 +10,13 @@ namespace edyn {
 
 class worker {
 public:
-    void push_job(std::shared_ptr<job> j) {
-        m_queue.push(j);
+    void push_back(std::shared_ptr<job> j) {
+        m_queue.push_back(j);
+        ++m_size;
+    }
+
+    void push_front(std::shared_ptr<job> j) {
+        m_queue.push_front(j);
         ++m_size;
     }
 
@@ -43,7 +48,6 @@ public:
                 j->run();
                 --m_size;
             }
-
 
             if (!m_running) {
                 break;

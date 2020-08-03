@@ -3,10 +3,18 @@
 
 namespace edyn {
 
-void job_queue::push(std::shared_ptr<job> j) {
+void job_queue::push_back(std::shared_ptr<job> j) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_jobs.push_back(j);
+    }
+    m_cv.notify_one();
+}
+
+void job_queue::push_front(std::shared_ptr<job> j) {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_jobs.push_front(j);
     }
     m_cv.notify_one();
 }
@@ -22,8 +30,8 @@ std::shared_ptr<job> job_queue::pop() {
         return {};
     }
 
-    auto j = m_jobs.back();
-    m_jobs.pop_back();
+    auto j = m_jobs.front();
+    m_jobs.pop_front();
     return j;
 }
 
@@ -33,8 +41,8 @@ std::shared_ptr<job> job_queue::try_pop() {
         return {};
     }
 
-    auto j = m_jobs.back();
-    m_jobs.pop_back();
+    auto j = m_jobs.front();
+    m_jobs.pop_front();
     return j;
 }
 

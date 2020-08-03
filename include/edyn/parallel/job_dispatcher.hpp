@@ -6,7 +6,9 @@
 #include <memory>
 #include <thread>
 #include <mutex>
+#include "edyn/math/scalar.hpp"
 #include "edyn/parallel/worker.hpp"
+#include "edyn/parallel/timed_job_dispatcher.hpp"
 
 namespace edyn {
 
@@ -31,6 +33,10 @@ public:
      */
     void async(std::thread::id, std::shared_ptr<job> j);
 
+    void async_after(double seconds, std::shared_ptr<job> j);
+
+    void async_asap(std::shared_ptr<job> j);
+
     /**
      * Instantiates a worker for the current thread internally if it hasn't
      * been instantiated yet. Must be called before jobs are scheduled in that
@@ -49,10 +55,13 @@ public:
      */
     size_t num_workers() const;
 
+    void timer_main();
+
 private:
     std::vector<std::unique_ptr<std::thread>> m_threads;
     std::map<std::thread::id, std::unique_ptr<worker>> m_workers;
     job_thief m_thief;
+    timed_job_dispatcher m_timed_job_dispatcher;
 
     // Workers for external threads.
     std::map<std::thread::id, std::unique_ptr<worker>> m_external_workers;
